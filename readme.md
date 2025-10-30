@@ -1,57 +1,57 @@
-文件传输能力测评工具
+# 文件传输能力测评工具
 
-概述
+## 概述
 
 本工具用于测试不同超算集群之间的数据传输能力。它能够自动化生成不同大小的文件、开启传输任务并监控、校验文件完整性，生成传输速率、成功率、文件完整性校验结果。
 
-功能特点
+## 功能特点
 
-• 自动化文件生成：多种不同大小的文件，模拟真实情况
+- 自动化文件生成：多种不同大小的文件，模拟真实情况
 
-• 精准测量：准确记录文件传输时间并计算平均速率
+- 精准测量：准确记录文件传输时间并计算平均速率
 
-• 全面监控：实时跟踪数据传输速率，在屏幕输出进度条
+- 全面监控：实时跟踪数据传输速率，在屏幕输出进度条
 
-• 专业分析报告：数据传输速率、文件校验完整性等指标
+- 专业分析报告：数据传输速率、文件校验完整性等指标
 
-• 场景化覆盖：支持灵活配置，根据不同测试集群调整配置文件即可
+- 场景化覆盖：支持灵活配置，根据不同测试集群调整配置文件即可
 
 
-系统要求
+## 系统要求
 
 • Python 3.6+
 
 • 必需Python包：
 
-  • `fpdf2`
-  • `matplotlib`
-  • `numpy`
-  • `pandas`
-  • `python-dateutil`
-  • `tabulate`
+  - `fpdf2`
+  - `matplotlib`
+  - `numpy`
+  - `pandas`
+  - `python-dateutil`
+  - `tabulate`
 
 
 • LINUX依赖库：openssh-client、coreutils
 
 
-安装步骤
+## 安装步骤
 
-1. 克隆仓库或下载源代码
+克隆仓库或下载源代码
 
-使用方法
+## 使用方法
 
 1. 准备配置文件(文本格式)，示例如下：
 
 ```txt
 [DEFAULT]
-target_ip = efile111.hpccube.com
-port = 65022
+target_ip = efixxx.hpccube.com
+port = 6xx
 username = scnet_xxx
-password = 5b9-4082-adef-3e8e7198322d
+password = 5b9-4082-adef-xxxx198322d
 key_path = ./xxx.txt
 remote_dir = /file_transport
-ssh_ip = eshell111.hpccube.com
-ssh_port = 65082
+ssh_ip = eshexxx.hpccube.com
+ssh_port = 6xxx
 ```
 
 2. 运行基准测试：
@@ -73,7 +73,7 @@ python file_throughput.py -c config.ini
 | ssh_ip | string | 文件校验时使用的目标IP地址 | 与target_ip一致 |
 | ssh_port | integer | 文件校验时使用的目标端口 | 与port一致 |
 
-输出结果
+## 输出结果
 
 测试完成后将生成：
 1. 文件生成信息：包含每个文件的大小、名称、创建成功与否
@@ -81,7 +81,7 @@ python file_throughput.py -c config.ini
 3. 传输用时
 4. 文件完整性校验：包含每个文件的校验进度、成功与否
 
-注意事项
+## 注意事项
 
 1. 确保运行工具的用户有权限登录目标传输地址，并且能够访问指定端口
 2. 预留至少110GB的存储空间用于生成及传输数据
