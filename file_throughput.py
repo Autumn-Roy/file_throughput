@@ -6,10 +6,7 @@ import time
 import hashlib
 import sys
 import argparse
-import matplotlib.pyplot as plt
-import matplotlib
 from fpdf import FPDF
-
 
 def generate_files(sizes, count_per_size=10):
     """
@@ -183,18 +180,6 @@ def check_files_integrity(file_list, ssh_ip, ssh_port, username, key_path, remot
             print(f"文件 {filename} 校验通过。")
     return all_pass, result_details
 
-def plot_speed_chart(size_list, speed_list, output_png):
-    plt.figure(figsize=(8,6))
-    plt.bar(size_list, speed_list, color=['#5B9BD5','#ED7D31','#A5A5A5','#FFC000'])
-    plt.xlabel('File Type')
-    plt.ylabel('Average Transfer Speed (MB/s)')
-    plt.title('Average Transfer Speed for Different File Types')
-    for i, v in enumerate(speed_list):
-        plt.text(i, v, f"{v:.2f}", ha='center', va='bottom', fontsize=10)
-    plt.tight_layout()
-    plt.savefig(output_png)
-    plt.close()
-
 class PDFReport(FPDF):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -328,16 +313,8 @@ class PDFReport(FPDF):
         self._cur_table_header_row = None
         self._cur_table_col_widths = None
 
-    def add_image_centered(self, img_path, width=120):
-        if os.path.exists(img_path):
-            self.ln(2)
-            x = (210 - width)/2  # Center the image
-            self.image(img_path, x=x, w=width)
-            self.ln(5)
-        else:
-            self.add_par("(Image not found)")
 
-def generate_pdf_report(pdf_filename, items, speed_chart_png, config_info, overall_stats, integrity_results):
+def generate_pdf_report(pdf_filename, items, config_info, overall_stats, integrity_results):
     pdf = PDFReport(orientation='P', unit='mm', format='A4')
     pdf.add_page()
     pdf.set_title_utf8('Data Transfer Performance Evaluation Report')
@@ -359,13 +336,12 @@ def generate_pdf_report(pdf_filename, items, speed_chart_png, config_info, overa
     pdf.add_kv_table(overall_table, [60, 60], header_row=None)
     pdf.ln(5)
 
-    # 3. Transfer Speed Chart
-    pdf.add_section_title('3. Average Transfer Speed by File Type')
-    pdf.add_image_centered(speed_chart_png, width=120)
-    pdf.ln(3)
+    # 删除条形图部分，不再添加条形图，直接跳过3.
+
+    # 3. Transfer Speed Chart（删除，不输出）
 
     # 4. Data Integrity Check Results
-    pdf.add_section_title('4. Data Integrity Check Results')
+    pdf.add_section_title('3. Data Integrity Check Results')  # 标号顺延！
     check_result_header = ["Filename", "Local md5", "Remote md5", "Consistency"]
     check_result_rows = []
     for filename, local_md5, remote_md5, identical in integrity_results:
@@ -470,9 +446,6 @@ def file_throughput(config_path='config.ini'):
         s = size_mb / elapsed if elapsed > 0 else 0
         speed_list.append(s)
 
-    # 画图
-    speed_chart_file = "file_throughput_chart.png"
-    plot_speed_chart(size_mb_list, speed_list, speed_chart_file)
 
     # 新增完整性校验
     print("开始校验文件完整性（md5）...")
@@ -494,7 +467,6 @@ def file_throughput(config_path='config.ini'):
     generate_pdf_report(
         pdf_filename=pdf_filename,
         items=file_list,
-        speed_chart_png=speed_chart_file,
         config_info=config_info,
         overall_stats=stats,
         integrity_results=check_details,
