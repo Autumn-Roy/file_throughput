@@ -9,9 +9,6 @@ import argparse
 from fpdf import FPDF
 
 def generate_files(sizes, count_per_size=10):
-    """
-    生成指定大小和数量的数据文件。
-    """
     for size_name, size_flag in sizes:
         for i in range(1, count_per_size + 1):
             filename = f'{size_name}_{i}.dat'
@@ -26,16 +23,10 @@ def generate_files(sizes, count_per_size=10):
             subprocess.run(' '.join(cmd), shell=True, check=True)
 
 def get_config(config_path='config.ini'):
-    """
-    读取配置文件，返回传输ip、ssh登录ip、端口、账号、密码、密钥路径、远端目录。
-    远端登录的ip和端口都和传输用的不一样。
-    """
     config = configparser.ConfigParser()
     config.read(config_path, encoding='utf-8')
-    # 传输用的ip和端口
     target_ip = config.get('DEFAULT', 'target_ip')
     target_port = config.get('DEFAULT', 'port')
-    # ssh登录用的ip和端口
     ssh_ip = config.get('DEFAULT', 'ssh_ip', fallback=target_ip)
     ssh_port = config.get('DEFAULT', 'ssh_port', fallback=target_port)
     username = config.get('DEFAULT', 'username')
@@ -45,9 +36,6 @@ def get_config(config_path='config.ini'):
     return target_ip, target_port, ssh_ip, ssh_port, username, password, key_path, remote_dir
 
 def collect_file_list(sizes, count_per_size=10):
-    """
-    收集所有生成的文件名。
-    """
     file_list = []
     for size_name, _ in sizes:
         for i in range(1, count_per_size + 1):
@@ -56,9 +44,6 @@ def collect_file_list(sizes, count_per_size=10):
     return file_list
 
 def build_rayfilec_cmd(target_ip, port, username, password, file_list, remote_dir):
-    """
-    构造rayfile-c命令。
-    """
     base_cmd = [
         'rayfile-c',
         '-a', target_ip,
@@ -78,9 +63,6 @@ def build_rayfilec_cmd(target_ip, port, username, password, file_list, remote_di
     return base_cmd
 
 def calc_total_size(file_list):
-    """
-    计算所有文件的总大小（字节）。
-    """
     total_size = 0
     for filename in file_list:
         if os.path.exists(filename):
@@ -88,9 +70,6 @@ def calc_total_size(file_list):
     return total_size
 
 def calc_local_md5(filename):
-    """
-    计算本地文件的md5值。
-    """
     hash_md5 = hashlib.md5()
     with open(filename, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
@@ -98,12 +77,6 @@ def calc_local_md5(filename):
     return hash_md5.hexdigest()
 
 def get_remote_md5(ssh_ip, ssh_port, username, key_path, remote_dir, filename):
-    """
-    通过ssh密钥登录远端，获取远端文件的md5值。
-    注意：ssh_ip和ssh_port用于远端登录。
-    这里需要获取远端的绝对路径，否则~会被本地shell解释，导致路径错误。
-    """
-    # 先通过ssh获取远端家目录
     get_home_cmd = [
         'ssh',
         '-i', key_path,
@@ -122,12 +95,10 @@ def get_remote_md5(ssh_ip, ssh_port, username, key_path, remote_dir, filename):
         print(f"获取远端家目录失败: {e}")
         return None
 
-    # 拼接远端绝对路径
     if remote_dir.startswith("/"):
         remote_dir = remote_dir[1:]
     remote_path = os.path.join(remote_home, remote_dir, filename)
 
-    # 兼容不同系统的md5sum命令
     md5_cmd = f"if command -v md5sum >/dev/null 2>&1; then md5sum '{remote_path}'; elif command -v md5 >/dev/null 2>&1; then md5 '{remote_path}'; else echo 'no_md5_tool'; fi"
     ssh_cmd = [
         'ssh',
@@ -143,12 +114,9 @@ def get_remote_md5(ssh_ip, ssh_port, username, key_path, remote_dir, filename):
         if 'no_md5_tool' in output or result.returncode != 0:
             print(f"远端未找到md5工具或命令执行失败: {output}")
             return None
-        # 解析md5值
         if 'md5sum' in md5_cmd:
-            # 形如: md5hash  filename
             md5_value = output.split()[0]
         elif 'md5 ' in output:
-            # macOS: MD5 (filename) = md5hash
             md5_value = output.split('=')[-1].strip()
         else:
             md5_value = output.split()[0]
@@ -158,10 +126,6 @@ def get_remote_md5(ssh_ip, ssh_port, username, key_path, remote_dir, filename):
         return None
 
 def check_files_integrity(file_list, ssh_ip, ssh_port, username, key_path, remote_dir):
-    """
-    检查本地和远端文件的md5值是否一致。
-    返回：列表 [ (filename, 本地md5, 远端md5, 是否一致) , ... ]
-    """
     result_details = []
     all_pass = True
     for filename in file_list:
@@ -259,7 +223,6 @@ class PDFReport(FPDF):
         return lines
 
     def _draw_table_row(self, values, col_widths, line_height=7, border=1, fill=False, align_list=None):
-        # 预览如果当前行加上高度后是否会溢出页面，如果会，强制换页并画表头
         x_start = self.get_x()
         y_start = self.get_y()
         lines_per_cell = []
@@ -271,16 +234,11 @@ class PDFReport(FPDF):
         row_height = line_height * max_lines
         PAGE_HEIGHT = self.h - self.b_margin
 
-        # 自定义表格分页机制
-        # 若当前Y+row_height超出底部，且不是在页面顶部，换页并重绘表头
         if (y_start + row_height > PAGE_HEIGHT) and (y_start > self.t_margin + 5):
             self.add_page()
-            # 如果有全局变量或实例属性 self._last_table_header_row, self._last_table_col_widths，可以在这里重绘header
             if hasattr(self, '_cur_table_header_row') and hasattr(self, '_cur_table_col_widths') and self._cur_table_header_row is not None:
-                # 递归调用画header
                 self.set_fill_color(220, 220, 220)
                 self._draw_table_row(self._cur_table_header_row, self._cur_table_col_widths, line_height=line_height, fill=True, align_list=['C']*len(self._cur_table_header_row))
-            # 新页面新起点
             x_start = self.get_x()
             y_start = self.get_y()
         # Draw border + cell content
@@ -299,7 +257,6 @@ class PDFReport(FPDF):
         self.set_xy(x_start, y_start + row_height)
 
     def add_table_with_auto_header(self, data_rows, col_widths, header_row, line_height=7, align_list=None):
-        # 将当前表头和列宽传给实例属性，供自动分页时使用
         self._cur_table_header_row = header_row
         self._cur_table_col_widths = col_widths
         # header
@@ -309,7 +266,6 @@ class PDFReport(FPDF):
         self.set_fill_color(255,255,255)
         for row in data_rows:
             self._draw_table_row([str(v) for v in row], col_widths, line_height=line_height, align_list=align_list)
-        # 恢复context，防止下表污染
         self._cur_table_header_row = None
         self._cur_table_col_widths = None
 
@@ -336,12 +292,8 @@ def generate_pdf_report(pdf_filename, items, config_info, overall_stats, integri
     pdf.add_kv_table(overall_table, [60, 60], header_row=None)
     pdf.ln(5)
 
-    # 删除条形图部分，不再添加条形图，直接跳过3.
-
-    # 3. Transfer Speed Chart（删除，不输出）
-
     # 4. Data Integrity Check Results
-    pdf.add_section_title('3. Data Integrity Check Results')  # 标号顺延！
+    pdf.add_section_title('3. Data Integrity Check Results') 
     check_result_header = ["Filename", "Local md5", "Remote md5", "Consistency"]
     check_result_rows = []
     for filename, local_md5, remote_md5, identical in integrity_results:
@@ -357,10 +309,7 @@ def generate_pdf_report(pdf_filename, items, config_info, overall_stats, integri
     col_widths = [50, 45, 45, 25]
     line_height = 7
     pdf.set_font("Arial", size=11)
-    # 注意: 新表格绘制方式，支持自动分页和表头复用
-    # 支持高亮状态
     data_rows = []
-    # 先绘制表头，逐条绘制数据（支持高亮color）
     pdf._cur_table_header_row = check_result_header
     pdf._cur_table_col_widths = col_widths
     # header
@@ -368,7 +317,6 @@ def generate_pdf_report(pdf_filename, items, config_info, overall_stats, integri
     pdf._draw_table_row(check_result_header, col_widths, line_height=line_height, fill=True, align_list=['C']*len(check_result_header))
     # data
     for row in check_result_rows:
-        # 高亮颜色
         if row[3] == 'Fail':
             pdf.set_text_color(255, 0, 0)
         elif row[3] == 'Failed to get remote md5':
@@ -390,9 +338,9 @@ def file_throughput(config_path='config.ini'):
         ('100MB', '100M'),
         ('1KB', '1K')
     ]
-    # 生成文件
+
     generate_files(sizes)
-    # 读取配置
+
     target_ip, target_port, ssh_ip, ssh_port, username, password, key_path, remote_dir = get_config(config_path)
     config_info = {
         "Target IP": target_ip,
@@ -403,14 +351,14 @@ def file_throughput(config_path='config.ini'):
         "Key Path": key_path,
         "Remote Directory": remote_dir
     }
-    # 收集文件列表
+
     file_list = collect_file_list(sizes)
-    # 计算总文件大小
+
     total_size_bytes = calc_total_size(file_list)
     total_size_mb = total_size_bytes / (1024 * 1024)
-    # 构造命令
+
     rayfile_cmd = build_rayfilec_cmd(target_ip, target_port, username, password, file_list, remote_dir)
-    # 打印并执行命令
+
     print("即将执行的rayfile-c命令：")
     print(' '.join(rayfile_cmd))
     start_time = time.time()
@@ -426,7 +374,6 @@ def file_throughput(config_path='config.ini'):
         print("平均传输速率: N/A")
         avg_speed = 0.0
 
-    # 分文件类型统计及速率分析
     size_type_to_size = { name: sz for name, sz in sizes }
     per_type_files = {name: [] for name, sz in sizes}
     for fname in file_list:
@@ -441,13 +388,10 @@ def file_throughput(config_path='config.ini'):
         size_bytes = sum(os.path.getsize(f) for f in files if os.path.exists(f))
         size_mb = size_bytes / (1024 * 1024)
         size_mb_list.append(f"{name}")
-        # 估算各类型平均速率 = 各类型文件体积 / 总耗时
-        # 更准确做法是分开传多次，但本工具按总速率给出
         s = size_mb / elapsed if elapsed > 0 else 0
         speed_list.append(s)
 
 
-    # 新增完整性校验
     print("开始校验文件完整性（md5）...")
     all_pass, check_details = check_files_integrity(file_list, ssh_ip, ssh_port, username, key_path, remote_dir)
     if all_pass:
@@ -455,14 +399,12 @@ def file_throughput(config_path='config.ini'):
     else:
         print("部分文件完整性校验失败，请检查日志。")
 
-    # 汇总统计
     stats = {
         "Total Time (s)": f"{elapsed:.2f}",
         "Total File Size (MB)": f"{total_size_mb:.2f}",
         "Average Transfer Speed (MB/s)": f"{avg_speed:.2f}",
     }
 
-    # 生成PDF报告
     pdf_filename = "file_throughput_report.pdf"
     generate_pdf_report(
         pdf_filename=pdf_filename,
